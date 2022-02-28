@@ -26,6 +26,10 @@ int linko_find_symbol(linko_t *l, char *symbol)
         return LINKO_ERR;
     }
 
+    if (elf_get_symbol(&l->elf, symbol)) {
+        return LINKO_ERR;
+    }
+
     return LINKO_NO_ERR;
 }
 
