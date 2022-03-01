@@ -1,5 +1,4 @@
 #include "elf_parser.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -83,16 +82,38 @@ int elf_lookup_section_hdr(elf_t *elf,
     return -1;
 }
 
-int elf_get_symbol(elf_t *elf, char *symbol)
+int elf_get_symbol(elf_t *elf, char *symbol, Elf32_Addr *addr)
 {
     uint16_t idx;
+    uint8_t *elf_data = elf->inner->data;
+    Elf64_Ehdr *elf_header = elf->inner->header;
     int ret = elf_lookup_section_hdr(elf, ".symtab", SHT_SYMTAB, &idx);
     if (ret)
         return ret;
 
-    printf("idx of symtab: %d\n", idx);
+    Elf64_Shdr *symtab_sec_header =
+        get_section_header(elf_data, elf_header, idx);
+    Elf64_Sym *symtab = (Elf64_Sym *) (elf_data + symtab_sec_header->sh_offset);
 
-    return 0;
+    Elf64_Shdr *strtab_sec_header =
+        get_section_header(elf_data, elf_header, symtab_sec_header->sh_link);
+    char *strtab = (char *) elf_data + strtab_sec_header->sh_offset;
+
+    unsigned int symbol_cnt = symtab_sec_header->sh_size / sizeof(Elf64_Sym);
+    for (unsigned int i = 0; i < symbol_cnt; i++) {
+        if (ELF64_ST_TYPE(symtab[i].st_info) == STT_FUNC) {
+            const char *f_symbol = strtab + symtab[i].st_name;
+
+            if (!strcmp(symbol, f_symbol)) {
+                /* st_value is an offset in bytes of the function from the
+                 * beginning of the `.text` section
+                 */
+                *addr = symtab[i].st_value;
+                return 0;
+            }
+        }
+    }
+    return -1;
 }
 
 void elf_close(elf_t *elf)

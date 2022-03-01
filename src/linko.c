@@ -26,7 +26,8 @@ int linko_find_symbol(linko_t *l, char *symbol)
         return LINKO_ERR;
     }
 
-    if (elf_get_symbol(&l->elf, symbol)) {
+    Elf32_Addr addr;
+    if (elf_get_symbol(&l->elf, symbol, &addr)) {
         return LINKO_ERR;
     }
 
