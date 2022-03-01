@@ -4,6 +4,7 @@ LDFLAGS =
 CURDIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 OUT ?= build
 BINARY = $(OUT)/linko
+TEST = $(OUT)/gcd
 SHELL_HACK := $(shell mkdir -p $(OUT))
 
 GIT_HOOKS := .git/hooks/applied
@@ -27,12 +28,12 @@ $(BINARY): $(COBJ)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 test: tests/gcd.c
-	$(CC) -c $(CFLAGS) $< -o $(OUT)/gcd.o
+	$(CC) $(CFLAGS) $< -o $(TEST)
 
 check: all test
-	$(BINARY) $(OUT)/gcd.o gcd64
+	$(BINARY) $(OUT)/gcd gcd64
 
 clean:
 	$(RM) $(COBJ)
-	$(RM) $(OUT)/gcd.o
+	$(RM) $(TEST)
 	$(RM) $(BINARY)
