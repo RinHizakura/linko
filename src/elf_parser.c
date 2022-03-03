@@ -29,8 +29,7 @@ int elf_init(elf_t *elf, int fd)
         return -1;
 
     elf->sz = st.st_size;
-    elf->inner->data =
-        mmap(0, elf->sz, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+    elf->inner->data = mmap(0, elf->sz, PROT_READ, MAP_PRIVATE, fd, 0);
     if (elf->inner->data == MAP_FAILED)
         return -1;
 
@@ -52,7 +51,7 @@ int elf_check_valid(elf_t *elf)
 int elf_lookup_section_hdr(elf_t *elf,
                            char *name,
                            Elf64_Word sh_type,
-                           Elf64_Half *idx)
+                           Elf64_Shdr *output_sec_header)
 {
     uint8_t *elf_data = elf->inner->data;
     Elf64_Ehdr *elf_header = elf->inner->header;
@@ -70,13 +69,12 @@ int elf_lookup_section_hdr(elf_t *elf,
         if (sh_type < SHT_LOUSER && sh_type != sec_header->sh_type)
             continue;
 
-        if (sec_header->sh_type == SHT_SYMTAB ||
-            sec_header->sh_type == SHT_DYNSYM)
-
-            if (!strcmp(name, sec_name)) {
-                *idx = (uint16_t) i;
-                return 0;
-            }
+        if (!strcmp(name, sec_name)) {
+            memcpy(output_sec_header,
+                   get_section_header(elf_data, elf_header, i),
+                   sizeof(Elf64_Shdr));
+            return 0;
+        }
     }
 
     return -1;
@@ -84,22 +82,21 @@ int elf_lookup_section_hdr(elf_t *elf,
 
 int elf_get_symbol(elf_t *elf, char *symbol, Elf32_Addr *addr)
 {
-    uint16_t idx;
+    Elf64_Shdr symtab_sec_header;
     uint8_t *elf_data = elf->inner->data;
     Elf64_Ehdr *elf_header = elf->inner->header;
-    int ret = elf_lookup_section_hdr(elf, ".symtab", SHT_SYMTAB, &idx);
+    int ret =
+        elf_lookup_section_hdr(elf, ".symtab", SHT_SYMTAB, &symtab_sec_header);
     if (ret)
         return ret;
 
-    Elf64_Shdr *symtab_sec_header =
-        get_section_header(elf_data, elf_header, idx);
-    Elf64_Sym *symtab = (Elf64_Sym *) (elf_data + symtab_sec_header->sh_offset);
+    Elf64_Sym *symtab = (Elf64_Sym *) (elf_data + symtab_sec_header.sh_offset);
 
     Elf64_Shdr *strtab_sec_header =
-        get_section_header(elf_data, elf_header, symtab_sec_header->sh_link);
+        get_section_header(elf_data, elf_header, symtab_sec_header.sh_link);
     char *strtab = (char *) elf_data + strtab_sec_header->sh_offset;
 
-    unsigned int symbol_cnt = symtab_sec_header->sh_size / sizeof(Elf64_Sym);
+    unsigned int symbol_cnt = symtab_sec_header.sh_size / sizeof(Elf64_Sym);
     for (unsigned int i = 0; i < symbol_cnt; i++) {
         if (ELF64_ST_TYPE(symtab[i].st_info) == STT_FUNC) {
             const char *f_symbol = strtab + symtab[i].st_name;
@@ -118,5 +115,6 @@ int elf_get_symbol(elf_t *elf, char *symbol, Elf32_Addr *addr)
 
 void elf_close(elf_t *elf)
 {
+    munmap(elf->inner->data, elf->sz);
     free(elf->inner);
 }

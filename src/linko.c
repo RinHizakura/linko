@@ -31,6 +31,12 @@ int linko_find_symbol(linko_t *l, char *symbol)
         return LINKO_ERR;
     }
 
+    Elf64_Shdr text_sec_header;
+    int ret = elf_lookup_section_hdr(&l->elf, ".text", SHT_PROGBITS,
+                                     &text_sec_header);
+    if (ret)
+        return ret;
+
     return LINKO_NO_ERR;
 }
 

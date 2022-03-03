@@ -17,7 +17,7 @@ int elf_check_valid(elf_t *elf);
 int elf_lookup_section_hdr(elf_t *elf,
                            char *name,
                            Elf64_Word sh_type,
-                           Elf64_Half *idx);
+                           Elf64_Shdr *output_sec_header);
 int elf_get_symbol(elf_t *elf, char *symbol, Elf32_Addr *addr);
 void elf_close(elf_t *elf);
 
