@@ -113,6 +113,13 @@ int elf_get_symbol(elf_t *elf, char *symbol, Elf32_Addr *addr)
     return -1;
 }
 
+void *elf_copy_section(elf_t *elf, Elf64_Shdr *sec_header, uint8_t *output)
+{
+    uint8_t *elf_data = elf->inner->data;
+    return memcpy(output, elf_data + sec_header->sh_offset,
+                  sec_header->sh_size);
+}
+
 void elf_close(elf_t *elf)
 {
     munmap(elf->inner->data, elf->sz);

@@ -19,6 +19,7 @@ int elf_lookup_section_hdr(elf_t *elf,
                            Elf64_Word sh_type,
                            Elf64_Shdr *output_sec_header);
 int elf_get_symbol(elf_t *elf, char *symbol, Elf32_Addr *addr);
+void *elf_copy_section(elf_t *elf, Elf64_Shdr *sec_header, uint8_t *output);
 void elf_close(elf_t *elf);
 
 #endif
