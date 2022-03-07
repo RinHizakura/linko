@@ -106,9 +106,6 @@ int elf_lookup_symbol(elf_t *elf,
             const char *f_symbol = strtab + symtab[i].st_name;
 
             if (!strcmp(symbol, f_symbol)) {
-                /* st_value is an offset in bytes of the function from the
-                 * beginning of the `.text` section
-                 */
                 memcpy(sym, &symtab[i], sizeof(Elf64_Sym));
                 return 0;
             }
