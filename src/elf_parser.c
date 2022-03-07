@@ -80,7 +80,10 @@ int elf_lookup_section_hdr(elf_t *elf,
     return -1;
 }
 
-int elf_get_symbol(elf_t *elf, char *symbol, Elf32_Addr *addr)
+int elf_lookup_symbol(elf_t *elf,
+                      char *symbol,
+                      unsigned char type_info,
+                      Elf32_Sym *sym)
 {
     Elf64_Shdr symtab_sec_header;
     uint8_t *elf_data = elf->inner->data;
@@ -98,19 +101,24 @@ int elf_get_symbol(elf_t *elf, char *symbol, Elf32_Addr *addr)
 
     unsigned int symbol_cnt = symtab_sec_header.sh_size / sizeof(Elf64_Sym);
     for (unsigned int i = 0; i < symbol_cnt; i++) {
-        if (ELF64_ST_TYPE(symtab[i].st_info) == STT_FUNC) {
+        if (ELF64_ST_TYPE(symtab[i].st_info) == type_info) {
             const char *f_symbol = strtab + symtab[i].st_name;
 
             if (!strcmp(symbol, f_symbol)) {
                 /* st_value is an offset in bytes of the function from the
                  * beginning of the `.text` section
                  */
-                *addr = symtab[i].st_value;
+                memcpy(sym, &symtab[i], sizeof(Elf32_Sym));
                 return 0;
             }
         }
     }
     return -1;
+}
+
+int elf_lookup_function(elf_t *elf, char *symbol, Elf32_Sym *sym)
+{
+    return elf_lookup_symbol(elf, symbol, STT_FUNC, sym);
 }
 
 void *elf_copy_section(elf_t *elf, Elf64_Shdr *sec_header, uint8_t *output)
