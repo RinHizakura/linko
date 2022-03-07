@@ -37,7 +37,7 @@ $(TESTS): %: %.o $(LIBLINKO)
 	$(CC) $^ -o $@ $(LDFLAGS)
 
 check: all
-	$(OUT)/main $(OUT)/gcd gcd64
+	$(OUT)/main $(OUT)/gcd gcdadd
 
 clean:
 	$(RM) $(LIB_OBJ)
