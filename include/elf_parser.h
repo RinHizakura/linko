@@ -22,7 +22,7 @@ int elf_lookup_symbol(elf_t *elf,
                       char *symbol,
                       unsigned char type_info,
                       Elf64_Sym *sym);
-int elf_lookup_function(elf_t *elf, char *symbol, Elf32_Sym *sym);
+int elf_lookup_function(elf_t *elf, char *symbol, Elf64_Sym *sym);
 void *elf_copy_section(elf_t *elf, Elf64_Shdr *sec_header, uint8_t *output);
 void elf_close(elf_t *elf);
 

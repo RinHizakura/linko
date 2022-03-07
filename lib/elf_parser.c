@@ -117,7 +117,7 @@ int elf_lookup_symbol(elf_t *elf,
     return -1;
 }
 
-int elf_lookup_function(elf_t *elf, char *symbol, Elf32_Sym *sym)
+int elf_lookup_function(elf_t *elf, char *symbol, Elf64_Sym *sym)
 {
     return elf_lookup_symbol(elf, symbol, STT_FUNC, sym);
 }

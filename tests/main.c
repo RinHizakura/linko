@@ -3,6 +3,8 @@
 
 #define ARGS_CNT 3
 
+typedef uint64_t (*gcd64_t)(uint64_t a, uint64_t b);
+
 int main(int argc, char *argv[])
 {
     if (argc != ARGS_CNT) {
@@ -20,12 +22,13 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    ret = linko_find_symbol(&l, argv[2]);
-    if (ret) {
+    gcd64_t gcd64 = (gcd64_t) linko_find_symbol(&l, argv[2]);
+    if (gcd64 == NULL) {
         printf("linko find symbol failed\n");
         return -1;
     }
 
+    printf("gcd %ld\n", gcd64(16, 4));
     linko_close(&l);
 
     return 0;
