@@ -1,4 +1,5 @@
 #include "elf_parser.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -83,7 +84,7 @@ int elf_lookup_section_hdr(elf_t *elf,
 int elf_lookup_symbol(elf_t *elf,
                       char *symbol,
                       unsigned char type_info,
-                      Elf32_Sym *sym)
+                      Elf64_Sym *sym)
 {
     Elf64_Shdr symtab_sec_header;
     uint8_t *elf_data = elf->inner->data;
@@ -108,7 +109,7 @@ int elf_lookup_symbol(elf_t *elf,
                 /* st_value is an offset in bytes of the function from the
                  * beginning of the `.text` section
                  */
-                memcpy(sym, &symtab[i], sizeof(Elf32_Sym));
+                memcpy(sym, &symtab[i], sizeof(Elf64_Sym));
                 return 0;
             }
         }

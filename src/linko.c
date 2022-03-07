@@ -1,6 +1,7 @@
 #include "linko.h"
 #include <fcntl.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include "elf_parser.h"
@@ -22,13 +23,15 @@ int linko_init(linko_t *l, char *obj_file)
     return LINKO_NO_ERR;
 }
 
+typedef uint64_t (*gcd64_t)(uint64_t a, uint64_t b);
+
 int linko_find_symbol(linko_t *l, char *symbol)
 {
     if (elf_check_valid(&l->elf)) {
         return LINKO_ERR;
     }
 
-    Elf32_Sym sym;
+    Elf64_Sym sym;
     if (elf_lookup_function(&l->elf, symbol, &sym)) {
         return LINKO_ERR;
     }
@@ -50,6 +53,11 @@ int linko_find_symbol(linko_t *l, char *symbol)
 
     if (mprotect(text_region, region_sz, PROT_READ | PROT_EXEC))
         return LINKO_ERR;
+
+    /* FIXME: We need a more flexible way to get the function prototype */
+    gcd64_t gcd64;
+    gcd64 = (gcd64_t)(text_region + (sym.st_value - text_sec_header.sh_addr));
+    printf("gcd %ld\n", gcd64(16, 4));
 
     munmap(text_region, region_sz);
 
