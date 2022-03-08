@@ -5,15 +5,15 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include "elf_parser.h"
-#include "err.h"
 #include "utils/align.h"
 
-int linko_init(linko_t *l, char *obj_file)
+int linko_init(linko_t *l, char *obj_file, TYPE file_type)
 {
     int fd = open(obj_file, O_RDONLY);
     if (fd < 0)
         return LINKO_ERR;
 
+    l->type = file_type;
     int ret = elf_init(&l->elf, fd);
     close(fd);
 
