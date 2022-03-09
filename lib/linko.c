@@ -37,6 +37,12 @@ void *linko_find_symbol(linko_t *l, char *symbol)
     if (elf_lookup_function(&l->elf, symbol, &sym))
         return NULL;
 
+    Elf64_Rela rela;
+    if (elf_lookup_rela(&l->elf, "printf", R_X86_64_JUMP_SLOT, &rela))
+        return NULL;
+
+    printf("off %lx\n", rela.r_offset);
+
     Elf64_Shdr text_sec_header;
     int ret = elf_lookup_section_hdr(&l->elf, ".text", SHT_PROGBITS,
                                      &text_sec_header);

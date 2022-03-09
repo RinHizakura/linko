@@ -18,6 +18,10 @@ int elf_lookup_section_hdr(elf_t *elf,
                            char *name,
                            Elf64_Word sh_type,
                            Elf64_Shdr *output_sec_header);
+int elf_lookup_rela(elf_t *elf,
+                    char *symbol,
+                    unsigned char type_info,
+                    Elf64_Rela *rela);
 int elf_lookup_symbol(elf_t *elf,
                       char *symbol,
                       unsigned char type_info,
