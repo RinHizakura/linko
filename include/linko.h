@@ -8,8 +8,10 @@
 typedef struct {
     elf_t elf;
     TYPE type;
+    uint8_t *plt_region;
     uint8_t *text_region;
-    size_t text_sz;
+    uint8_t *map_region;
+    size_t map_sz;
 } linko_t;
 
 int linko_init(linko_t *l, char *obj_file, TYPE file_type);

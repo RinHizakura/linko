@@ -23,6 +23,11 @@ int linko_init(linko_t *l, char *obj_file, TYPE file_type)
     return LINKO_NO_ERR;
 }
 
+/* This is a set of x86 instructions which can hang the execution */
+#include <string.h>
+static uint8_t hang[10] = {0xf3, 0x0f, 0x1e, 0xfa, 0x55,
+                           0x48, 0x89, 0xe5, 0xeb, 0xfe};
+
 void *linko_find_symbol(linko_t *l, char *symbol)
 {
     if (elf_check_valid(&l->elf))
@@ -38,16 +43,27 @@ void *linko_find_symbol(linko_t *l, char *symbol)
     if (ret)
         return NULL;
 
-    l->text_sz = ALIGN_UP(text_sec_header.sh_size, sysconf(_SC_PAGESIZE));
-    l->text_region = mmap(NULL, l->text_sz, PROT_READ | PROT_WRITE,
-                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (l->text_region == MAP_FAILED)
+    Elf64_Shdr plt_sec_header;
+    ret = elf_lookup_section_hdr(&l->elf, ".plt.sec", SHT_PROGBITS,
+                                 &plt_sec_header);
+    if (ret)
         return NULL;
+
+    size_t sz = plt_sec_header.sh_size + text_sec_header.sh_size;
+    l->map_sz = ALIGN_UP(sz, sysconf(_SC_PAGESIZE));
+    l->map_region = mmap(NULL, l->map_sz, PROT_READ | PROT_WRITE,
+                         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (l->map_region == MAP_FAILED)
+        return NULL;
+
+    l->plt_region = l->map_region;
+    l->text_region = l->map_region + plt_sec_header.sh_size;
+    memcpy(l->plt_region, hang, 10);
 
     /* copy the contents of `.text` section from the ELF file */
     elf_copy_section(&l->elf, &text_sec_header, l->text_region);
 
-    if (mprotect(l->text_region, l->text_sz, PROT_READ | PROT_EXEC))
+    if (mprotect(l->map_region, l->map_sz, PROT_READ | PROT_EXEC))
         return NULL;
 
     return (void *) (l->text_region + (sym.st_value - text_sec_header.sh_addr));
@@ -55,6 +71,6 @@ void *linko_find_symbol(linko_t *l, char *symbol)
 
 void linko_close(linko_t *l)
 {
-    munmap(l->text_region, l->text_sz);
+    munmap(l->map_region, l->map_sz);
     elf_close(&l->elf);
 }
