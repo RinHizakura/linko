@@ -5,11 +5,6 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-union elf_inner {
-    Elf64_Ehdr *header;
-    uint8_t *data;
-};
-
 static inline Elf64_Shdr *get_section_header(uint8_t *elf_file,
                                              Elf64_Ehdr *elf_header,
                                              int offset)
@@ -52,7 +47,7 @@ int elf_check_valid(elf_t *elf)
 int elf_lookup_section_hdr(elf_t *elf,
                            char *name,
                            Elf64_Word sh_type,
-                           Elf64_Shdr *output_sec_header)
+                           Elf64_Shdr **output_sec_header)
 {
     uint8_t *elf_data = elf->inner->data;
     Elf64_Ehdr *elf_header = elf->inner->header;
@@ -71,9 +66,7 @@ int elf_lookup_section_hdr(elf_t *elf,
             continue;
 
         if (!strcmp(name, sec_name)) {
-            memcpy(output_sec_header,
-                   get_section_header(elf_data, elf_header, i),
-                   sizeof(Elf64_Shdr));
+            *output_sec_header = get_section_header(elf_data, elf_header, i);
             return 0;
         }
     }
@@ -84,37 +77,38 @@ int elf_lookup_section_hdr(elf_t *elf,
 int elf_lookup_rela(elf_t *elf,
                     char *symbol,
                     unsigned char type_info,
-                    Elf64_Rela *rela)
+                    Elf64_Rela **rela)
 {
     uint8_t *elf_data = elf->inner->data;
     Elf64_Ehdr *elf_header = elf->inner->header;
 
-    Elf64_Shdr rela_sec_header;
+    Elf64_Shdr *rela_sec_header;
     int ret =
         elf_lookup_section_hdr(elf, ".rela.plt", SHT_RELA, &rela_sec_header);
     if (ret)
         return ret;
-    Elf64_Rela *relatab = (Elf64_Rela *) (elf_data + rela_sec_header.sh_offset);
+    Elf64_Rela *relatab =
+        (Elf64_Rela *) (elf_data + rela_sec_header->sh_offset);
 
     Elf64_Shdr *symtab_sec_header =
-        get_section_header(elf_data, elf_header, rela_sec_header.sh_link);
+        get_section_header(elf_data, elf_header, rela_sec_header->sh_link);
     Elf64_Sym *symtab = (Elf64_Sym *) (elf_data + symtab_sec_header->sh_offset);
 
-    Elf64_Shdr dynstr_sec_header;
+    Elf64_Shdr *dynstr_sec_header;
     ret =
         elf_lookup_section_hdr(elf, ".dynstr", SHT_STRTAB, &dynstr_sec_header);
     if (ret)
         return ret;
-    char *strtab = (char *) elf_data + dynstr_sec_header.sh_offset;
+    char *strtab = (char *) elf_data + dynstr_sec_header->sh_offset;
 
-    unsigned int rela_cnt = rela_sec_header.sh_size / sizeof(Elf64_Rela);
+    unsigned int rela_cnt = rela_sec_header->sh_size / sizeof(Elf64_Rela);
 
     for (unsigned int i = 0; i < rela_cnt; i++) {
         if (ELF64_R_TYPE(relatab[i].r_info) == type_info) {
             const char *f_symbol =
                 strtab + symtab[ELF64_R_SYM(relatab[i].r_info)].st_name;
             if (!strcmp(symbol, f_symbol)) {
-                memcpy(rela, &relatab[i], sizeof(Elf64_Rela));
+                *rela = &relatab[i];
                 return 0;
             }
         }
@@ -125,9 +119,9 @@ int elf_lookup_rela(elf_t *elf,
 int elf_lookup_symbol(elf_t *elf,
                       char *symbol,
                       unsigned char type_info,
-                      Elf64_Sym *sym)
+                      Elf64_Sym **sym)
 {
-    Elf64_Shdr symtab_sec_header;
+    Elf64_Shdr *symtab_sec_header;
     uint8_t *elf_data = elf->inner->data;
     Elf64_Ehdr *elf_header = elf->inner->header;
     int ret =
@@ -135,19 +129,19 @@ int elf_lookup_symbol(elf_t *elf,
     if (ret)
         return ret;
 
-    Elf64_Sym *symtab = (Elf64_Sym *) (elf_data + symtab_sec_header.sh_offset);
+    Elf64_Sym *symtab = (Elf64_Sym *) (elf_data + symtab_sec_header->sh_offset);
 
     Elf64_Shdr *strtab_sec_header =
-        get_section_header(elf_data, elf_header, symtab_sec_header.sh_link);
+        get_section_header(elf_data, elf_header, symtab_sec_header->sh_link);
     char *strtab = (char *) elf_data + strtab_sec_header->sh_offset;
 
-    unsigned int symbol_cnt = symtab_sec_header.sh_size / sizeof(Elf64_Sym);
+    unsigned int symbol_cnt = symtab_sec_header->sh_size / sizeof(Elf64_Sym);
     for (unsigned int i = 0; i < symbol_cnt; i++) {
         if (ELF64_ST_TYPE(symtab[i].st_info) == type_info) {
             const char *f_symbol = strtab + symtab[i].st_name;
 
             if (!strcmp(symbol, f_symbol)) {
-                memcpy(sym, &symtab[i], sizeof(Elf64_Sym));
+                *sym = &symtab[i];
                 return 0;
             }
         }
@@ -155,16 +149,9 @@ int elf_lookup_symbol(elf_t *elf,
     return -1;
 }
 
-int elf_lookup_function(elf_t *elf, char *symbol, Elf64_Sym *sym)
+int elf_lookup_function(elf_t *elf, char *symbol, Elf64_Sym **sym)
 {
     return elf_lookup_symbol(elf, symbol, STT_FUNC, sym);
-}
-
-void *elf_copy_section(elf_t *elf, Elf64_Shdr *sec_header, uint8_t *output)
-{
-    uint8_t *elf_data = elf->inner->data;
-    return memcpy(output, elf_data + sec_header->sh_offset,
-                  sec_header->sh_size);
 }
 
 void elf_close(elf_t *elf)

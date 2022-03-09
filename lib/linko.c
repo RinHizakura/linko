@@ -33,29 +33,29 @@ void *linko_find_symbol(linko_t *l, char *symbol)
     if (elf_check_valid(&l->elf))
         return NULL;
 
-    Elf64_Sym sym;
+    Elf64_Sym *sym;
     if (elf_lookup_function(&l->elf, symbol, &sym))
         return NULL;
 
-    Elf64_Rela rela;
+    Elf64_Rela *rela;
     if (elf_lookup_rela(&l->elf, "printf", R_X86_64_JUMP_SLOT, &rela))
         return NULL;
 
-    printf("off %lx\n", rela.r_offset);
+    printf("off %lx\n", rela->r_offset);
 
-    Elf64_Shdr text_sec_header;
+    Elf64_Shdr *text_sec_header;
     int ret = elf_lookup_section_hdr(&l->elf, ".text", SHT_PROGBITS,
                                      &text_sec_header);
     if (ret)
         return NULL;
 
-    Elf64_Shdr plt_sec_header;
+    Elf64_Shdr *plt_sec_header;
     ret = elf_lookup_section_hdr(&l->elf, ".plt.sec", SHT_PROGBITS,
                                  &plt_sec_header);
     if (ret)
         return NULL;
 
-    size_t sz = plt_sec_header.sh_size + text_sec_header.sh_size;
+    size_t sz = plt_sec_header->sh_size + text_sec_header->sh_size;
     l->map_sz = ALIGN_UP(sz, sysconf(_SC_PAGESIZE));
     l->map_region = mmap(NULL, l->map_sz, PROT_READ | PROT_WRITE,
                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -63,16 +63,18 @@ void *linko_find_symbol(linko_t *l, char *symbol)
         return NULL;
 
     l->plt_region = l->map_region;
-    l->text_region = l->map_region + plt_sec_header.sh_size;
+    l->text_region = l->map_region + plt_sec_header->sh_size;
     memcpy(l->plt_region, hang, 10);
 
     /* copy the contents of `.text` section from the ELF file */
-    elf_copy_section(&l->elf, &text_sec_header, l->text_region);
+    memcpy(l->text_region, l->elf.inner->data + text_sec_header->sh_offset,
+           text_sec_header->sh_size);
 
     if (mprotect(l->map_region, l->map_sz, PROT_READ | PROT_EXEC))
         return NULL;
 
-    return (void *) (l->text_region + (sym.st_value - text_sec_header.sh_addr));
+    return (void *) (l->text_region +
+                     (sym->st_value - text_sec_header->sh_addr));
 }
 
 void linko_close(linko_t *l)
