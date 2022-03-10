@@ -5,14 +5,6 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-static inline Elf64_Shdr *get_section_header(uint8_t *elf_file,
-                                             Elf64_Ehdr *elf_header,
-                                             int offset)
-{
-    return (Elf64_Shdr *) (elf_file + elf_header->e_shoff +
-                           elf_header->e_shentsize * offset);
-}
-
 int elf_init(elf_t *elf, int fd)
 {
     struct stat st;
@@ -71,45 +63,6 @@ int elf_lookup_section_hdr(elf_t *elf,
         }
     }
 
-    return -1;
-}
-
-int elf_lookup_rela(elf_t *elf,
-                    char *symbol,
-                    unsigned char type_info,
-                    Elf64_Rela **rela)
-{
-    uint8_t *elf_data = elf->inner->data;
-    Elf64_Ehdr *elf_header = elf->inner->header;
-
-    Elf64_Shdr *rela_sec_header;
-    int ret =
-        elf_lookup_section_hdr(elf, ".rela.plt", SHT_RELA, &rela_sec_header);
-    if (ret)
-        return ret;
-    Elf64_Rela *relatab =
-        (Elf64_Rela *) (elf_data + rela_sec_header->sh_offset);
-
-    Elf64_Shdr *symtab_sec_header =
-        get_section_header(elf_data, elf_header, rela_sec_header->sh_link);
-    Elf64_Sym *symtab = (Elf64_Sym *) (elf_data + symtab_sec_header->sh_offset);
-
-    Elf64_Shdr *dynstr_sec_header =
-        get_section_header(elf_data, elf_header, symtab_sec_header->sh_link);
-    char *strtab = (char *) elf_data + dynstr_sec_header->sh_offset;
-
-    unsigned int rela_cnt = rela_sec_header->sh_size / sizeof(Elf64_Rela);
-
-    for (unsigned int i = 0; i < rela_cnt; i++) {
-        if (ELF64_R_TYPE(relatab[i].r_info) == type_info) {
-            const char *f_symbol =
-                strtab + symtab[ELF64_R_SYM(relatab[i].r_info)].st_name;
-            if (!strcmp(symbol, f_symbol)) {
-                *rela = &relatab[i];
-                return 0;
-            }
-        }
-    }
     return -1;
 }
 

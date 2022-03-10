@@ -17,6 +17,14 @@ struct elf {
     size_t sz;
 };
 
+static inline Elf64_Shdr *get_section_header(uint8_t *elf_file,
+                                             Elf64_Ehdr *elf_header,
+                                             int offset)
+{
+    return (Elf64_Shdr *) (elf_file + elf_header->e_shoff +
+                           elf_header->e_shentsize * offset);
+}
+
 int elf_init(elf_t *elf, int fd);
 int elf_check_valid(elf_t *elf);
 int elf_lookup_section_hdr(elf_t *elf,
