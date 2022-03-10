@@ -94,11 +94,8 @@ int elf_lookup_rela(elf_t *elf,
         get_section_header(elf_data, elf_header, rela_sec_header->sh_link);
     Elf64_Sym *symtab = (Elf64_Sym *) (elf_data + symtab_sec_header->sh_offset);
 
-    Elf64_Shdr *dynstr_sec_header;
-    ret =
-        elf_lookup_section_hdr(elf, ".dynstr", SHT_STRTAB, &dynstr_sec_header);
-    if (ret)
-        return ret;
+    Elf64_Shdr *dynstr_sec_header =
+        get_section_header(elf_data, elf_header, symtab_sec_header->sh_link);
     char *strtab = (char *) elf_data + dynstr_sec_header->sh_offset;
 
     unsigned int rela_cnt = rela_sec_header->sh_size / sizeof(Elf64_Rela);
