@@ -26,7 +26,14 @@ static int linko_create_map(linko_t *l)
     if (ret)
         return LINKO_ERR;
 
-    size_t sz = plt_sec_header->sh_size + text_sec_header->sh_size;
+    Elf64_Shdr *got_sec_header;
+    ret =
+        elf_lookup_section_hdr(&l->elf, ".got", SHT_PROGBITS, &got_sec_header);
+    if (ret)
+        return LINKO_ERR;
+
+    size_t reserved_sz = (got_sec_header->sh_addr - text_sec_header->sh_addr);
+    size_t sz = plt_sec_header->sh_size + reserved_sz + got_sec_header->sh_size;
     l->map_sz = ALIGN_UP(sz, sysconf(_SC_PAGESIZE));
     l->map_region = mmap(NULL, l->map_sz, PROT_READ | PROT_WRITE,
                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -35,11 +42,15 @@ static int linko_create_map(linko_t *l)
 
     l->plt_region = l->map_region;
     l->text_region = l->map_region + plt_sec_header->sh_size;
-    memcpy(l->plt_region, hang, 10);
+    l->got_region = l->text_region + reserved_sz;
 
-    /* copy the contents of `.text` section from the ELF file */
     memcpy(l->text_region, l->elf.inner->data + text_sec_header->sh_offset,
            text_sec_header->sh_size);
+    memcpy(l->plt_region, l->elf.inner->data + plt_sec_header->sh_offset,
+           plt_sec_header->sh_size);
+    memcpy(l->got_region, l->elf.inner->data + got_sec_header->sh_offset,
+           got_sec_header->sh_size);
+    // memcpy(l->got_region, hang, 10);
 
     if (mprotect(l->map_region, l->map_sz, PROT_READ | PROT_EXEC))
         return LINKO_ERR;

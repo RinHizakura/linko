@@ -10,6 +10,7 @@ typedef struct {
     TYPE type;
     uint8_t *plt_region;
     uint8_t *text_region;
+    uint8_t *got_region;
     uint8_t *map_region;
     size_t map_sz;
 } linko_t;

@@ -1,4 +1,4 @@
-CFLAGS = -Iinclude -Wall -Wextra -Werror
+CFLAGS = -Iinclude -Wall -Wextra #-Werror
 LDFLAGS = -Wl,-rpath="$(CURDIR)" -L. -llinko
 
 CURDIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
