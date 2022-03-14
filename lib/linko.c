@@ -1,4 +1,5 @@
 #include "linko.h"
+#include <dlfcn.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -69,6 +70,13 @@ static int linko_protect_map(linko_t *l)
     return LINKO_NO_ERR;
 }
 
+static void *linko_dlsym(linko_t *l, char *symbol)
+{
+    /* TODO: recycle the resource */
+    void *lib = dlopen(NULL, RTLD_LAZY);
+    return dlsym(lib, symbol);
+}
+
 static int linko_do_rela(linko_t *l)
 {
     uint8_t *elf_data = l->elf.inner->data;
@@ -99,14 +107,13 @@ static int linko_do_rela(linko_t *l)
     unsigned int rela_cnt = rela_sec_header->sh_size / sizeof(Elf64_Rela);
     for (unsigned int i = 0; i < rela_cnt; i++) {
         if (ELF64_R_TYPE(relatab[i].r_info) == R_X86_64_JUMP_SLOT) {
-            const char *f_symbol =
+            char *f_symbol =
                 strtab + symtab[ELF64_R_SYM(relatab[i].r_info)].st_name;
-            printf("rela symbol %s, ", f_symbol);
-            printf("off %lx\n", relatab[i].r_offset);
-            printf("off %lx\n", (uint64_t) hang_func);
-            *(uint64_t *) (l->got_region +
-                           (relatab[i].r_offset - got_sec_header->sh_addr)) =
-                (uint64_t) hang_func;
+
+            void *addr = linko_dlsym(l, f_symbol);
+            *(uintptr_t *) (l->got_region +
+                            (relatab[i].r_offset - got_sec_header->sh_addr)) =
+                (uintptr_t) addr;
         }
     }
 

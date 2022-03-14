@@ -1,5 +1,5 @@
 CFLAGS = -Iinclude -Wall -Wextra #-Werror
-LDFLAGS = -Wl,-rpath="$(CURDIR)" -L. -llinko
+LDFLAGS = -Wl,-rpath="$(CURDIR)" -L. -ldl -llinko
 
 CURDIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 OUT ?= build
