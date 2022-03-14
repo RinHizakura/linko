@@ -12,6 +12,13 @@
 static uint8_t hang[10] = {0xf3, 0x0f, 0x1e, 0xfa, 0x55,
                            0x48, 0x89, 0xe5, 0xeb, 0xfe};
 
+static void hang_func()
+{
+    printf("Hi, you are hanged by me!\n");
+    while (1)
+        ;
+}
+
 static int linko_create_map(linko_t *l)
 {
     Elf64_Shdr *text_sec_header;
@@ -52,9 +59,13 @@ static int linko_create_map(linko_t *l)
            got_sec_header->sh_size);
     // memcpy(l->got_region, hang, 10);
 
+    return LINKO_NO_ERR;
+}
+
+static int linko_protect_map(linko_t *l)
+{
     if (mprotect(l->map_region, l->map_sz, PROT_READ | PROT_EXEC))
         return LINKO_ERR;
-
     return LINKO_NO_ERR;
 }
 
@@ -63,9 +74,15 @@ static int linko_do_rela(linko_t *l)
     uint8_t *elf_data = l->elf.inner->data;
     Elf64_Ehdr *elf_header = l->elf.inner->header;
 
+    Elf64_Shdr *got_sec_header;
+    int ret =
+        elf_lookup_section_hdr(&l->elf, ".got", SHT_PROGBITS, &got_sec_header);
+    if (ret)
+        return LINKO_ERR;
+
     Elf64_Shdr *rela_sec_header;
-    int ret = elf_lookup_section_hdr(&l->elf, ".rela.plt", SHT_RELA,
-                                     &rela_sec_header);
+    ret = elf_lookup_section_hdr(&l->elf, ".rela.plt", SHT_RELA,
+                                 &rela_sec_header);
     if (ret)
         return LINKO_ERR;
     Elf64_Rela *relatab =
@@ -86,6 +103,10 @@ static int linko_do_rela(linko_t *l)
                 strtab + symtab[ELF64_R_SYM(relatab[i].r_info)].st_name;
             printf("rela symbol %s, ", f_symbol);
             printf("off %lx\n", relatab[i].r_offset);
+            printf("off %lx\n", (uint64_t) hang_func);
+            *(uint64_t *) (l->got_region +
+                           (relatab[i].r_offset - got_sec_header->sh_addr)) =
+                (uint64_t) hang_func;
         }
     }
 
@@ -111,6 +132,9 @@ int linko_init(linko_t *l, char *obj_file, TYPE file_type)
         return LINKO_ERR;
 
     if (linko_do_rela(l))
+        return LINKO_ERR;
+
+    if (linko_protect_map(l))
         return LINKO_ERR;
 
     return LINKO_NO_ERR;

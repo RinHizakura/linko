@@ -19,6 +19,7 @@ uint64_t gcdadd(uint64_t a, uint64_t b, uint64_t c, uint64_t d)
     uint64_t x = gcd64(a, b);
     uint64_t y = gcd64(c, d);
     printf("%ld %ld\n", x, y);
+    puts("hello!\n");
 
     return x + y;
 }
