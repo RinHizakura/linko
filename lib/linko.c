@@ -20,28 +20,36 @@ static void hang_func()
         ;
 }
 
+static void *linko_copy_section(linko_t *l, uint8_t *dst, Elf64_Shdr *shdr)
+{
+    uint8_t *elf_data = l->elf.inner->data;
+    return memcpy(dst, elf_data + shdr->sh_offset, shdr->sh_size);
+}
+
 static int linko_create_map(linko_t *l)
 {
     Elf64_Shdr *text_sec_header;
-    int ret = elf_lookup_section_hdr(&l->elf, ".text", SHT_PROGBITS,
-                                     &text_sec_header);
+    int ret = elf_lookup_shdr(&l->elf, ".text", SHT_PROGBITS, &text_sec_header);
     if (ret)
         return LINKO_ERR;
 
     Elf64_Shdr *plt_sec_header;
-    ret = elf_lookup_section_hdr(&l->elf, ".plt.sec", SHT_PROGBITS,
-                                 &plt_sec_header);
+    ret = elf_lookup_shdr(&l->elf, ".plt.sec", SHT_PROGBITS, &plt_sec_header);
     if (ret)
         return LINKO_ERR;
 
     Elf64_Shdr *got_sec_header;
-    ret =
-        elf_lookup_section_hdr(&l->elf, ".got", SHT_PROGBITS, &got_sec_header);
+    ret = elf_lookup_shdr(&l->elf, ".got", SHT_PROGBITS, &got_sec_header);
     if (ret)
         return LINKO_ERR;
 
-    size_t reserved_sz = (got_sec_header->sh_addr - text_sec_header->sh_addr);
-    size_t sz = plt_sec_header->sh_size + reserved_sz + got_sec_header->sh_size;
+    Elf64_Shdr *ro_sec_header;
+    ret = elf_lookup_shdr(&l->elf, ".rodata", SHT_PROGBITS, &ro_sec_header);
+    if (ret)
+        return LINKO_ERR;
+
+    /* FIXME: can we naively rely on the fixed section order? */
+    size_t sz = (got_sec_header->sh_addr - plt_sec_header->sh_addr);
     l->map_sz = ALIGN_UP(sz, sysconf(_SC_PAGESIZE));
     l->map_region = mmap(NULL, l->map_sz, PROT_READ | PROT_WRITE,
                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -49,16 +57,17 @@ static int linko_create_map(linko_t *l)
         return LINKO_ERR;
 
     l->plt_region = l->map_region;
-    l->text_region = l->map_region + plt_sec_header->sh_size;
-    l->got_region = l->text_region + reserved_sz;
+    l->text_region =
+        l->map_region + (text_sec_header->sh_addr - plt_sec_header->sh_addr);
+    l->ro_region =
+        l->map_region + (ro_sec_header->sh_addr - plt_sec_header->sh_addr);
+    l->got_region =
+        l->map_region + (got_sec_header->sh_addr - plt_sec_header->sh_addr);
 
-    memcpy(l->text_region, l->elf.inner->data + text_sec_header->sh_offset,
-           text_sec_header->sh_size);
-    memcpy(l->plt_region, l->elf.inner->data + plt_sec_header->sh_offset,
-           plt_sec_header->sh_size);
-    memcpy(l->got_region, l->elf.inner->data + got_sec_header->sh_offset,
-           got_sec_header->sh_size);
-    // memcpy(l->got_region, hang, 10);
+    linko_copy_section(l, l->plt_region, plt_sec_header);
+    linko_copy_section(l, l->text_region, text_sec_header);
+    linko_copy_section(l, l->ro_region, ro_sec_header);
+    linko_copy_section(l, l->got_region, got_sec_header);
 
     return LINKO_NO_ERR;
 }
@@ -83,14 +92,12 @@ static int linko_do_rela(linko_t *l)
     Elf64_Ehdr *elf_header = l->elf.inner->header;
 
     Elf64_Shdr *got_sec_header;
-    int ret =
-        elf_lookup_section_hdr(&l->elf, ".got", SHT_PROGBITS, &got_sec_header);
+    int ret = elf_lookup_shdr(&l->elf, ".got", SHT_PROGBITS, &got_sec_header);
     if (ret)
         return LINKO_ERR;
 
     Elf64_Shdr *rela_sec_header;
-    ret = elf_lookup_section_hdr(&l->elf, ".rela.plt", SHT_RELA,
-                                 &rela_sec_header);
+    ret = elf_lookup_shdr(&l->elf, ".rela.plt", SHT_RELA, &rela_sec_header);
     if (ret)
         return LINKO_ERR;
     Elf64_Rela *relatab =
@@ -152,8 +159,7 @@ void *linko_find_symbol(linko_t *l, char *symbol)
     /* FIXME: we can cache the founded header instead of searching it
      * again. */
     Elf64_Shdr *text_sec_header;
-    int ret = elf_lookup_section_hdr(&l->elf, ".text", SHT_PROGBITS,
-                                     &text_sec_header);
+    int ret = elf_lookup_shdr(&l->elf, ".text", SHT_PROGBITS, &text_sec_header);
     if (ret)
         return NULL;
 

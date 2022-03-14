@@ -27,10 +27,10 @@ static inline Elf64_Shdr *get_section_header(uint8_t *elf_file,
 
 int elf_init(elf_t *elf, int fd);
 int elf_check_valid(elf_t *elf);
-int elf_lookup_section_hdr(elf_t *elf,
-                           char *name,
-                           Elf64_Word sh_type,
-                           Elf64_Shdr **output_sec_header);
+int elf_lookup_shdr(elf_t *elf,
+                    char *name,
+                    Elf64_Word sh_type,
+                    Elf64_Shdr **output_sec_header);
 int elf_lookup_rela(elf_t *elf,
                     char *symbol,
                     unsigned char type_info,

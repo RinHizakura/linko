@@ -36,10 +36,10 @@ int elf_check_valid(elf_t *elf)
     return 0;
 }
 
-int elf_lookup_section_hdr(elf_t *elf,
-                           char *name,
-                           Elf64_Word sh_type,
-                           Elf64_Shdr **output_sec_header)
+int elf_lookup_shdr(elf_t *elf,
+                    char *name,
+                    Elf64_Word sh_type,
+                    Elf64_Shdr **output_sec_header)
 {
     uint8_t *elf_data = elf->inner->data;
     Elf64_Ehdr *elf_header = elf->inner->header;
@@ -74,8 +74,7 @@ int elf_lookup_symbol(elf_t *elf,
     Elf64_Shdr *symtab_sec_header;
     uint8_t *elf_data = elf->inner->data;
     Elf64_Ehdr *elf_header = elf->inner->header;
-    int ret =
-        elf_lookup_section_hdr(elf, ".symtab", SHT_SYMTAB, &symtab_sec_header);
+    int ret = elf_lookup_shdr(elf, ".symtab", SHT_SYMTAB, &symtab_sec_header);
     if (ret)
         return ret;
 
