@@ -1,4 +1,4 @@
-# [WIP] linko
+# linko
 
 ## Introduction
 
