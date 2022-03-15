@@ -82,8 +82,7 @@ static int linko_protect_map(linko_t *l)
 static void *linko_dlsym(linko_t *l, char *symbol)
 {
     /* TODO: recycle the resource */
-    void *lib = dlopen(NULL, RTLD_LAZY);
-    return dlsym(lib, symbol);
+    return dlsym(l->lib, symbol);
 }
 
 static int linko_do_rela(linko_t *l)
@@ -134,6 +133,7 @@ int linko_init(linko_t *l, char *obj_file, TYPE file_type)
         return LINKO_ERR;
 
     l->type = file_type;
+    l->lib = dlopen(NULL, RTLD_LAZY);
     int ret = elf_init(&l->elf, fd);
     close(fd);
     if (ret)
@@ -175,4 +175,5 @@ void linko_close(linko_t *l)
 {
     munmap(l->map_region, l->map_sz);
     elf_close(&l->elf);
+    dlclose(l->lib);
 }

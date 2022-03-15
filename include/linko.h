@@ -8,6 +8,7 @@
 typedef struct {
     elf_t elf;
     TYPE type;
+    void *lib;
     uint8_t *plt_region;
     uint8_t *ro_region;
     uint8_t *text_region;
