@@ -12,7 +12,7 @@ int elf_init(elf_t *elf, int fd)
     if (fstat(fd, &st))
         return -1;
 
-    elf->inner = malloc(sizeof(elf_t));
+    elf->inner = malloc(sizeof(elf_inner_t));
     if (elf == NULL)
         return -1;
 
